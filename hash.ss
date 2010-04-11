@@ -16,6 +16,12 @@
   (for/fold ([result empty-hash]) ([(k v) hash])
     (hash-set result k (proc v))))
 
+(define (hash-map-values hash proc)
+  (hash->list (hash-map-values:h hash proc)))
+
+(define (hash-map-keys hash proc)
+  (hash->list (hash-map-keys:h hash proc)))
+
 (define (hash-map-keys:h hash proc)
   (for/fold ([result empty-hash]) ([(k v) hash])
     (let ([new-key (proc k)])

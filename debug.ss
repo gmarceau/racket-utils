@@ -7,7 +7,8 @@
 (define %%-nesting (make-parameter 0))
 
 (define (%%v v)
-  (display (indent '%% v))
+  (display (indent/bullet '%% (* 3(%%-nesting))
+                          (pretty-format v)))
   v)
 
 (define (%% proc . args)
