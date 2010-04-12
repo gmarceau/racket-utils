@@ -11,6 +11,8 @@
 
 (define (list->dotted-pair lst) (cons (first lst) (second lst)))
 
+(define (lstlst->assoc lstlst) (map list->dotted-pair lstlst))
+
 (define (transpose lstlst) (apply map list lstlst))
 
 (define (take-percentile lst percentile top? key-fn cache-keys?)

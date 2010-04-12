@@ -2,9 +2,11 @@
 
 (require
  (planet neil/csv)
+ (planet dherman/csv-write/csv-write)
  "cut.ss"
  "hash.ss"
  "utils.ss"
+ srfi/1
  )
 (provide (all-defined-out))
 
@@ -45,7 +47,17 @@
 
 (define (csv->table input)
   (define lstlst (csv->list input))
-  (lstlst->table (first lstlst) (rest lstlst)))
+  (lstlst->table (map string->symbol (first lstlst)) (rest lstlst)))
+
+(define (table->csv table #:port [port (current-output-port)] #:order [order #f])
+  (define header (hash-keys (first table)))
+  (when (and order
+             (not (lset= header order)))
+    (error 'table->csv "ordering fields do not match the table: ~a vs ~a" order header))
+  (let ()
+    (define data (for/list ([row table])
+                   (map (// .. row <>) (or order header))))
+    (write-table (cons (or order header) data) port)))
 
 (define (lstlst->table field-names lstlst)
   (for/list ([lst lstlst])
