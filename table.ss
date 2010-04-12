@@ -5,7 +5,8 @@
  (planet dherman/csv-write/csv-write)
  "cut.ss"
  "hash.ss"
- "utils.ss"
+ "util.ss"
+ "counting.ss"
  srfi/1
  )
 (provide (all-defined-out))
@@ -42,8 +43,9 @@
 
 (define .. hash-ref)
 (define !! hash-set)
+(define -- hash-remove)
 (define ?? hash-has-key?)
-   
+
 
 (define (csv->table input)
   (define lstlst (csv->list input))
@@ -51,9 +53,14 @@
 
 (define (table->csv table #:port [port (current-output-port)] #:order [order #f])
   (define header (hash-keys (first table)))
-  (when (and order
-             (not (lset= header order)))
-    (error 'table->csv "ordering fields do not match the table: ~a vs ~a" order header))
+  (define missing (lset-difference equal? header order))
+  (define extra (lset-difference equal? order header))
+  (define dups (filter-map (lambda (v) (and (> (counted-c v) 1)
+                                            (counted-cats v)))
+                           (count-instances order)))
+  (when (not (empty? missing)) (error 'table->csv "order specification missing for: ~s" missing))
+  (when (not (empty? extra)) (error 'table->csv "order specification given superfluously for: ~s" extra))
+  (when (not (empty? dups)) (error 'table->csv "order specification given in duplicate for: ~s" dups))
   (let ()
     (define data (for/list ([row table])
                    (map (// .. row <>) (or order header))))
