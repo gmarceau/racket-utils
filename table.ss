@@ -16,14 +16,15 @@
 (define (table/c value/c)
   (listof (hash/c symbol? value/c)))
 
-
+(require "debug.ss")
+#;
 (define (rowof* . key-values/c)
   (define keys (map first key-values/c))
   (define values/c (map second key-values/c))
   
   (define (first-order v)
-    (and (hash? v)
-         (lset<= equal? keys (hash-keys v))))
+    (and (%% hash? v)
+         (%% lset<= equal? keys (hash-keys v))))
   
   (define (projection pos neg src-info name positive-position?)
     (lambda (v)
@@ -33,8 +34,9 @@
           (hash-set result k (contract value/c (hash-ref v k) pos neg src-info))))
       (for/fold ([result wrapped]) ([k extra-keys])
         (hash-set result k (hash-ref v k)))))
-  
-  (make-proj-contract 'rowof projection first-order))
+
+  (make-proj-contract (build-compound-type-name 'rowof values/c)
+                      projection first-order))
 
 (define-syntax rowof
   (syntax-rules ()
@@ -47,7 +49,6 @@
   (syntax-rules ()
     [(_ (key val/c) ...)
      (listof (rowof (key val/c) ...))]))
-
 
 (define .. hash-ref)
 (define !! hash-set)

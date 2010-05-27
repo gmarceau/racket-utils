@@ -1,4 +1,5 @@
 #lang scheme
+(require "util.ss")
 (provide (all-defined-out))
 
 (define empty-hash (make-immutable-hash empty))
@@ -29,7 +30,10 @@
         (error 'hash-map-keys:h "duplicated destination key: ~a" new-key))
       (hash-set result new-key v))))
 
-(define (hash->list hash) (hash-map hash list))
+(define (hash->list hash #:sort [sort-fn #f] #:key [key-fn id] #:cache-keys? [cache-keys? #f])
+  (define result (hash-map hash list))
+  (if sort-fn (sort result sort-fn #:key (compose key-fn first) #:cache-keys? cache-keys?) result))
+
 (define (hash->assoc hash) (hash-map hash cons))
 (define (list->hash lst) (make-immutable-hash (map (match-lambda [(list a b) (cons a b)]) lst)))
 (define assoc->hash make-immutable-hash)

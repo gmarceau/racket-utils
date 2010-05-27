@@ -14,7 +14,7 @@
 
 (provide/contract [directory-list/recursive
                    (path-string? . -> . (listof path-string?))])
-(define (directory-list/recursive dirname)
+(define (directory-list*/recursive dirname)
   (flatten
    (for/list ([item (directory-list* dirname)])
      (if (directory-exists? item)
