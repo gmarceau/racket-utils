@@ -25,6 +25,13 @@
                            ('patern 'input-patern)]
                           no-loc))))]))
 
+
+(define-syntax (test stx)
+  (syntax-case stx ()
+    [(_ str exp ...) (string? (syntax-e #'str))
+     #'(run-tests/exn (test-suite "test" (let () exp ...)))]
+    [(_ exp ...) (test "test" exp ...)]))
+
 ;; run-tests/exn (or test-case test-suite) #:multiple boolean? -> void
 ;; Run all the given tests, and highlight the first one that fails.
 ;; If MULTIPLE? is false (which is the default,) testing stops after the first failure.

@@ -1,8 +1,8 @@
 #lang scheme
 
-(provide format-percent id average pad match? sequence)
+(provide format-percent id average pad match? match?-lambda sequence)
 
-(define (format-percent n) (format "~a%" (truncate (* 100 n))))
+(define (format-percent n) (format "~a%" (round (* 100 n))))
 
 ;; indent: Indent the string STR by n spaces. STR may have multiple lines
 (provide/contract [indent (number? string? . -> . string?)])
@@ -34,6 +34,12 @@
   (syntax-case stx ()
     [(_ v pattern) (syntax/loc stx
                      (match v [pattern #t] [_ #f]))]))
+
+(define-syntax (match?-lambda stx)
+  (syntax-case stx ()
+    [(_ pattern) (syntax/loc stx
+                   (match-lambda [pattern #t] [_ #f]))]))
+  
 
 (define (sequence init . fns)
   (for/fold ([result init]) ([fn fns])

@@ -10,11 +10,14 @@
 (define (count-instances lst)
   (sort
    (hash-map
-    (for/fold ([result (make-immutable-hash empty)])
-      ([item lst])
-      (hash-update result item add1 0))
+    (count-instances:h lst)
     make-counted)
    > #:key counted-c))
+
+(define (count-instances:h lst)
+  (for/fold ([result (make-immutable-hash empty)])
+    ([item lst])
+    (hash-update result item add1 0)))
 
 (define (counts->list counts)
   (map (match-lambda [(struct counted (cats c)) (list cats c)])
@@ -53,7 +56,7 @@
   
   sorted)
   
-
+(define-struct bucket (low high c) #:prefab)
 (define (value-histogram lst number-of-buckets
                          #:min-v [given-min-v #f]
                          #:max-v [given-max-v #f]
@@ -68,11 +71,11 @@
           [else (truncate (/ (- v min-v) delta-per-bucket))]))
   (define (category-of bucket-id)
     (match bucket-id
-      ['min (format "less than ~a" min-v)]
-      ['max (format "more than ~a" max-v)]
+      ['min (format "less than ~a" (exact->inexact min-v))]
+      ['max (format "more than ~a" (exact->inexact max-v))]
       [else (format "~a to ~a" 
-                    (+ min-v (* bucket-id delta-per-bucket))
-                    (+ min-v (* (add1 bucket-id) delta-per-bucket)))]))
+                    (exact->inexact (+ min-v (* bucket-id delta-per-bucket)))
+                    (exact->inexact (+ min-v (* (add1 bucket-id) delta-per-bucket))))]))
   (define h (for/fold ([result empty-hash])
               ([v keyed])
               (hash-update result (bucket-of v) add1 0)))
@@ -82,4 +85,33 @@
 
 
 
+(define (take-percentile lst percentile top? key-fn cache-keys?)
+  (define sorted (sort lst (if top? > <) #:key key-fn #:cache-keys? cache-keys?))
+  (define best (first sorted))
+  (define cut-off (* percentile (key-fn best)))
+  (define cut-off-index
+    (for/first ([item sorted]
+                [i (in-naturals)]
+                #:when (< (key-fn item) cut-off))
+      i))
+  (if cut-off-index
+      (take sorted cut-off-index)
+      sorted))
 
+(provide take-top-percentile)
+(define (take-top-percentile lst percentile
+                             #:key [key-fn id]
+                             #:cache-keys? [cache-keys? false])
+  (take-percentile lst (- 1 percentile) #t key-fn cache-keys?))
+
+(provide take-bottom-percentile)
+(define (take-bottom-percentile lst percentile
+                                #:key [key-fn id]
+                                #:cache-keys? [cache-keys? false])
+  (take-percentile lst percentile #f key-fn cache-keys?))
+
+
+(define (median lst) (list-ref lst (round (/ (length lst) 2))))
+
+(define (mode lst)
+  (counted-cats (first (count-instances lst))))

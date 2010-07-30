@@ -39,31 +39,6 @@
  [transpose ((listof list?) . -> . (listof list?))])
 (define (transpose lstlst) (apply map list lstlst))
 
-(define (take-percentile lst percentile top? key-fn cache-keys?)
-  (define sorted (sort lst (if top? > <) #:key key-fn #:cache-keys? cache-keys?))
-  (define best (first sorted))
-  (define cut-off (* percentile (key-fn best)))
-  (define cut-off-index
-    (for/first ([item sorted]
-                [i (in-naturals)]
-                #:when (< (key-fn item) cut-off))
-      i))
-  (if cut-off-index
-      (take sorted cut-off-index)
-      sorted))
-
-(provide take-top-percentile)
-(define (take-top-percentile lst percentile
-                             #:key [key-fn id]
-                             #:cache-keys? [cache-keys? false])
-  (take-percentile lst (- 1 percentile) #t key-fn cache-keys?))
-
-(provide take-bottom-percentile)
-(define (take-bottom-percentile lst percentile
-                                #:key [key-fn id]
-                                #:cache-keys? [cache-keys? false])
-  (take-percentile lst percentile #f key-fn cache-keys?))
-
 (provide/contract
  [shuffle (list? . -> . list?)])
 (define (shuffle lst) (sort lst < #:key (lambda (v) (random)) #:cache-keys? #t))

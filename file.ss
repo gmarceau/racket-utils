@@ -12,13 +12,13 @@
   (map (// build-path dirname <>)
        (directory-list dirname)))
 
-(provide/contract [directory-list/recursive
+(provide/contract [directory-list*/recursive
                    (path-string? . -> . (listof path-string?))])
 (define (directory-list*/recursive dirname)
   (flatten
    (for/list ([item (directory-list* dirname)])
      (if (directory-exists? item)
-         (list item (directory-list/recursive item))
+         (list item (directory-list*/recursive item))
          item))))
 
 ;; Returns the content of the file as parsed by READ, as a sequence.

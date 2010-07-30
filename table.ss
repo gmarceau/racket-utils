@@ -3,6 +3,7 @@
 (require
  (planet neil/csv)
  (planet dherman/csv-write/csv-write)
+ (planet untyped/unlib/for)
  "cut.ss"
  "hash.ss"
  "util.ss"
@@ -60,8 +61,9 @@
   (define lstlst (csv->list input))
   (lstlst->table (map string->symbol (first lstlst)) (rest lstlst)))
 
-(define (table->csv table #:port [port (current-output-port)] #:order [order #f])
+(define (table->csv table #:port [port (current-output-port)] #:order [order-in #f])
   (define header (hash-keys (first table)))
+  (define order (or order-in header))
   (define missing (lset-difference equal? header order))
   (define extra (lset-difference equal? order header))
   (define dups (filter-map (lambda (v) (and (> (counted-c v) 1)
@@ -80,10 +82,13 @@
     (make-immutable-hash
      (map cons field-names lst))))
 
-;; WHEN-SPEC is (listof (list/c field-name value))
+;; WHEN-SPEC is (listof (list/c field-name (or/c value (any . -> . boolean?)))
 (define (select table #:when [when-spec empty] . fields)
   (define (matches? i)
-    (andmap (match-lambda [(list f v) (equal? (hash-ref i f) v)]) when-spec))
+    (andmap
+     (match-lambda [(list f (? procedure? fn)) (fn (hash-ref i f))]
+                   [(list f v) (equal? (hash-ref i f) v)])
+     when-spec))
   (for/list ([i table] #:when (matches? i))
     (if (empty? fields)
         i
