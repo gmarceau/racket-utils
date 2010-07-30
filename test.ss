@@ -1,11 +1,13 @@
 #lang scheme
 
-(provide (all-defined-out))
+(provide (all-defined-out)
+         (all-from-out (planet schematics/schemeunit:3:4)))
 
 (require
  (planet schematics/schemeunit:3:4)
-         (planet schematics/schemeunit:3:4/text-ui)
-         (planet schematics/schemeunit:3:4/format))
+ (planet schematics/schemeunit:3:4/text-ui)
+ (planet schematics/schemeunit:3:4/format)
+ (planet schematics/schemeunit:3:4/check))
 
 ;; (check-match actual patern)
 ;; Check that the result from evaluating ACTUAL can be matched against PATERN.
@@ -25,12 +27,21 @@
                            ('patern 'input-patern)]
                           no-loc))))]))
 
+(define current-test-on? (make-parameter #t))
+
+(current-check-handler
+ (let ([prev (current-check-handler)])
+   (lambda (e) (prev e) (raise e))))
 
 (define-syntax (test stx)
   (syntax-case stx ()
-    [(_ str exp ...) (string? (syntax-e #'str))
-     #'(run-tests/exn (test-suite "test" (let () exp ...)))]
-    [(_ exp ...) (test "test" exp ...)]))
+    [(_ str exp ...)
+     (string? (syntax-e #'str))
+     #'(when (current-test-on?)
+         (printf "testing ~a ... " str)
+         (let () exp ...))]
+    [(_ exp ...) (syntax/loc stx (test "" exp ...))]))
+
 
 ;; run-tests/exn (or test-case test-suite) #:multiple boolean? -> void
 ;; Run all the given tests, and highlight the first one that fails.
@@ -62,15 +73,6 @@
   (if (= 0 count)
       (printf "All tests passed!~n")
       (printf "~a tests failed.~n" count)))
-
-
-
-
-
-
-
-
-
 
 
 
