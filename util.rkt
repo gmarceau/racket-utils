@@ -1,6 +1,6 @@
-#lang scheme
+#lang racket
 
-(provide format-percent id average pad match? match?-lambda sequence)
+(provide format-percent id average pad match? match?-lambda pipe lambda-pipe)
 
 (define (format-percent n) (format "~a%" (round (* 100 n))))
 
@@ -41,6 +41,39 @@
                    (match-lambda [pattern #t] [_ #f]))]))
   
 
-(define (sequence init . fns)
-  (for/fold ([result init]) ([fn fns])
-    (fn result)))
+(require "cut.rkt")
+(define-syntax (pipe stx)
+  (syntax-case stx ()
+    [(_ init (callee args ...) ...)
+     (syntax/loc stx
+       (for/fold ([result init]) ([fn (list (// callee args ...) ...)])
+         (fn result)))]))
+
+(define-syntax (lambda-pipe stx)
+  (syntax-case stx ()
+    [(_ (callee args ...) ...)
+     (syntax/loc stx
+       (lambda (init) (pipe init (callee args ...) ...)))]))
+
+#;
+(require (for-syntax
+          racket/match
+          racket/list))
+#;
+(define-match-expander (h stx)
+  (let ()
+    (define (group-pair-wise lst)
+      (match lst
+        [(list) empty]
+        [(list fst snd rst ...)
+         (cons (list fst snd) (group-pair-wise rst))]
+        [else (raise-syntax-error #f "there is a key that does not have a match value" stx)]))
+    (printf "hash~n")
+    (syntax-case stx ()
+      [(_ arg ...)
+       (begin
+         (printf "~a~n" (group-pair-wise (syntax->list #'(arg ...))))
+         (with-syntax ([(grouped ...) (group-pair-wise (syntax->list #'(arg ...)))])
+           (syntax/loc stx (hash-table grouped ...))))
+       ])))
+

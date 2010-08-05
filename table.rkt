@@ -1,13 +1,13 @@
-#lang scheme
+#lang racket
 
 (require
  (planet neil/csv)
  (planet dherman/csv-write/csv-write)
  (planet untyped/unlib/for)
- "cut.ss"
- "hash.ss"
- "util.ss"
- "counting.ss"
+ "cut.rkt"
+ "hash.rkt"
+ "util.rkt"
+ "counting.rkt"
  srfi/1
  )
 (provide (all-defined-out))
@@ -17,8 +17,8 @@
 (define (table/c value/c)
   (listof (hash/c symbol? value/c)))
 
-(require "debug.ss")
-#;
+(require "debug.rkt")
+#|
 (define (rowof* . key-values/c)
   (define keys (map first key-values/c))
   (define values/c (map second key-values/c))
@@ -38,6 +38,7 @@
 
   (make-proj-contract (build-compound-type-name 'rowof values/c)
                       projection first-order))
+|#
 
 (define-syntax rowof
   (syntax-rules ()
@@ -83,14 +84,22 @@
      (map cons field-names lst))))
 
 ;; WHEN-SPEC is (listof (list/c field-name (or/c value (any . -> . boolean?)))
-(define (select table #:when [when-spec empty] . fields)
+(define (select table #:fields [fields #f] . when-specs)
+  (define (group-pair-wise lst)
+    (match lst
+           [(list) empty]
+           [(list fst snd rst ...)
+            (cons (list fst snd) (group-pair-wise rst))]
+      [else (error 'select "there is a key that does not have a match value")]))
+  
   (define (matches? i)
     (andmap
      (match-lambda [(list f (? procedure? fn)) (fn (hash-ref i f))]
                    [(list f v) (equal? (hash-ref i f) v)])
-     when-spec))
+     (group-pair-wise when-specs)))
+    
   (for/list ([i table] #:when (matches? i))
-    (if (empty? fields)
+    (if (not fields)
         i
         (make-immutable-hash
          (for/list ([f fields]) (cons f (hash-ref i f)))))))
@@ -160,3 +169,6 @@
   (for/list ([i table])
     (hash-set (hash-remove i old-name)
               new-name (hash-ref i old-name))))
+
+(define (column->list table field)
+  (map (lambda (i) (.. i field)) table))

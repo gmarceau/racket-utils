@@ -1,6 +1,6 @@
-#lang scheme
+#lang racket
 
-(require "cut.ss")
+(require "cut.rkt")
 
 (provide/contract [path-string?
                    (any/c . -> . boolean?)])

@@ -1,15 +1,16 @@
-#lang scheme
+#lang racket
 
-(provide %%v %%)
+(provide %%v %% pretty-print*)
 
-(require "util.ss")
+(require "util.rkt")
 
 (define %%-nesting (make-parameter 0))
 
-(define (%%v v)
-  (display (indent/bullet '%% (* 3(%%-nesting))
-                          (pretty-format v)))
-  v)
+(define (%%v . vs)
+  (display (indent/bullet
+            '%% (* 3(%%-nesting))
+            (string-join (map pretty-format vs) " ")))
+  (last vs))
 
 (define (%% proc . args)
   (define number-of-spaces (* 3 (%%-nesting)))
@@ -18,3 +19,5 @@
     (display (indent/bullet '-> number-of-spaces (pretty-format result)))
     result))
 
+(define (pretty-print* . vs)
+  (pretty-print vs))

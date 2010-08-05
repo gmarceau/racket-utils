@@ -1,7 +1,7 @@
-#lang scheme
-(require "hash.ss"
-         "util.ss"
-         gmarceau/cut)
+#lang racket
+(require "hash.rkt"
+         "util.rkt"
+         "cut.rkt")
 (provide (all-defined-out))
 
 (define-struct counted (cats c) #:prefab)

@@ -1,7 +1,7 @@
-#lang scheme
-(require gmarceau/cut
-         gmarceau/hash
-         "util.ss")
+#lang racket
+(require "cut.rkt"
+         "hash.rkt"
+         "util.rkt")
 
 (provide/contract
  [mapmap ((any/c . -> . any) (listof list?) . -> . (listof list?))])

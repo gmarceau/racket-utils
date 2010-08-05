@@ -1,15 +1,10 @@
-#lang scheme
+#lang racket
 (require scheme/date 
-         gmarceau/cut)
+         "cut.rkt")
 (provide (all-defined-out))
 
 (define (prefab->date d)
   (apply make-date (rest (vector->list (struct->vector d)))))
-
-(define (date->seconds d)
-  (find-seconds (date-second d) (date-minute d)
-                (date-hour d) (date-day d) (date-month d)
-                (date-year d)))
 
 (define (date-minus a b unit)
   (/ (- (date->seconds a)

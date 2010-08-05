@@ -1,5 +1,5 @@
-#lang scheme
-(require "util.ss")
+#lang racket
+(require "util.rkt")
 (provide (all-defined-out))
 
 (define empty-hash (make-immutable-hash empty))

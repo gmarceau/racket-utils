@@ -1,4 +1,4 @@
-#lang scheme
+#lang racket
 
 (provide (all-defined-out)
          (all-from-out (planet schematics/schemeunit:3:4)))
@@ -9,6 +9,8 @@
  (planet schematics/schemeunit:3:4/format)
  (planet schematics/schemeunit:3:4/check))
 
+(require (for-syntax unstable/syntax))
+
 ;; (check-match actual patern)
 ;; Check that the result from evaluating ACTUAL can be matched against PATERN.
 ;; If not, the check fails.
@@ -18,14 +20,16 @@
      (let ()
        (with-syntax
            ([no-loc (datum->syntax
-                     stx
-                     (syntax->datum
-                      #'(check-true
-                         (match input-actual [input-patern #t] [_ #f]))))])
-         (syntax/loc stx (with-check-info
-                          [('actual input-actual)
-                           ('patern 'input-patern)]
-                          no-loc))))]))
+                  stx
+                  (syntax->datum
+                   #'(lambda (result)
+                       (check-true (match result [input-patern #t] [_ #f])))))])
+        (syntax/loc stx
+          (let ([result input-actual])
+            (with-check-info
+             [('actual result)
+              ('patern 'input-patern)]
+             (no-loc result))))))]))
 
 (define current-test-on? (make-parameter #t))
 
