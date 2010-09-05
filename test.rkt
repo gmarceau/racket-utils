@@ -39,11 +39,13 @@
 
 (define-syntax (test stx)
   (syntax-case stx ()
-    [(_ str exp ...)
-     (string? (syntax-e #'str))
-     #'(when (current-test-on?)
-         (printf "testing ~a ... " str)
-         (let () exp ...))]
+    [(_ label exp ...)
+     (or (symbol? (syntax-e #'label)) (string? (syntax-e #'label)))
+     #'(define _
+         (when (current-test-on?)
+           (printf "testing ~a ... " label)
+           (let () exp ...)
+           (printf "~n")))]
     [(_ exp ...) (syntax/loc stx (test "" exp ...))]))
 
 

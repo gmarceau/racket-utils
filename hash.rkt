@@ -4,6 +4,10 @@
 
 (define empty-hash (make-immutable-hash empty))
 
+(define (hash . k/vs)
+  (for/fold ([result empty-hash]) ([p (group-pairwise k/vs)])
+    (match p [(list k v) (hash-set result k v)])))
+
 (define (hash-ref-all h pairs)
   (map (lambda (k) (list k (hash-ref h k))) pairs))
 

@@ -1,6 +1,6 @@
 #lang racket
 
-(provide format-percent id average pad match? match?-lambda pipe lambda-pipe)
+(provide format-percent id average pad match? match?-lambda pipe lambda-pipe group-pairwise)
 
 (define (format-percent n) (format "~a%" (round (* 100 n))))
 
@@ -54,6 +54,13 @@
     [(_ (callee args ...) ...)
      (syntax/loc stx
        (lambda (init) (pipe init (callee args ...) ...)))]))
+
+(define (group-pairwise lst)
+  (match lst
+    [(list) empty]
+    [(list fst snd rst ...)
+     (cons (list fst snd) (group-pairwise rst))]
+    [else (error 'group-pairwise "there is a key that does not have a value")]))
 
 #;
 (require (for-syntax
