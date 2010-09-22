@@ -1,5 +1,5 @@
 #lang racket
-(provide (all-defined-out))
+
 
 (define (read-printable? v)
   (or (prefab-struct-key v)
@@ -20,7 +20,7 @@
   (parameterize ([pretty-print-columns 'infinity])
     ((if like-display? pretty-display pretty-print) vv port)))
 
-
+(provide pretty-print-for-read)
 (define (pretty-print-for-read data)
   (parameterize ([pretty-print-size-hook size-hook]
                  [pretty-print-print-hook print-hook])
@@ -28,6 +28,7 @@
       (pretty-print data)
       (newline))))
 
+(provide log-result)
 (define (log-result run-log-filename result)
   (with-output-to-file run-log-filename #:exists 'append
     (lambda ()

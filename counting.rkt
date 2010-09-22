@@ -2,11 +2,12 @@
 (require "hash.rkt"
          "util.rkt"
          "cut.rkt")
-(provide (all-defined-out))
+
 
 (define-struct counted (cats c) #:prefab)
 
 ; (listof a) -> (listof (struct count))
+(provide/contract [count-instances (list? . -> . (listof (list/c any/c counted?)))])
 (define (count-instances lst)
   (sort
    (hash-map
@@ -14,15 +15,18 @@
     make-counted)
    > #:key counted-c))
 
+(provide/contract [count-instances:h (list? . -> . (hash/c any/c natural-number/c))])
 (define (count-instances:h lst)
   (for/fold ([result (make-immutable-hash empty)])
     ([item lst])
     (hash-update result item add1 0)))
 
+(provide/contract [counts->list ((listof counted?) . -> . (listof (list/c any/c natural-number/c)))])
 (define (counts->list counts)
   (map (match-lambda [(struct counted (cats c)) (list cats c)])
        counts))
 
+(provide/contract [normalize-counts ((listof counted?) . -> . (listof counted?))])
 (define (normalize-counts counts)
   (define total (apply + (map (// counted-c <>) counts)))
   (map (match-lambda [(struct counted (cats c)) (make-counted cats (/ c total))])
@@ -45,7 +49,7 @@
   
   (define time-series
     (map (lambda (cat) (cons cat (map (// hash-ref <> cat) as-hash)))
-     all-cats))
+         all-cats))
   
   (define sorted 
     (if (not sort?)
@@ -55,7 +59,7 @@
          > #:key (lambda (lst) (apply + (rest lst))) #:cache-keys? #t)))
   
   sorted)
-  
+
 (define-struct bucket (low high c) #:prefab)
 (define (value-histogram lst number-of-buckets
                          #:min-v [given-min-v #f]
@@ -84,7 +88,6 @@
 
 
 
-
 (define (take-percentile lst percentile top? key-fn cache-keys?)
   (define sorted (sort lst (if top? > <) #:key key-fn #:cache-keys? cache-keys?))
   (define best (first sorted))
@@ -98,13 +101,15 @@
       (take sorted cut-off-index)
       sorted))
 
-(provide take-top-percentile)
+(provide/contract [take-top-percentile ((list? number?)
+                                        (#:key (any/c . -> . any/c) #:cache-keys? boolean?) . ->* . list?)])
 (define (take-top-percentile lst percentile
                              #:key [key-fn id]
                              #:cache-keys? [cache-keys? false])
   (take-percentile lst (- 1 percentile) #t key-fn cache-keys?))
 
-(provide take-bottom-percentile)
+(provide/contract [take-bottom-percentile ((list? number?)
+                                           (#:key (any/c . -> . any/c) #:cache-keys? boolean?) . ->* . list?)])
 (define (take-bottom-percentile lst percentile
                                 #:key [key-fn id]
                                 #:cache-keys? [cache-keys? false])

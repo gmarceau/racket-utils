@@ -87,7 +87,12 @@
      (map cons field-names lst))))
 
 ;; WHEN-SPEC is (listof (list/c field-name (or/c value (any . -> . boolean?)))
-(define (select table #:field [field #f] #:fields [fields #f] #:sort [sort-field #f] #:sort-fn [sort-fn <] . when-specs)
+(define (select table #:field [field #f] #:fields [fields #f]
+                #:sort [sort-field #f]
+                #:sort-fn [sort-fn <]
+                #:sort-key [sort-key (lambda (x) x)]
+                #:sort-cache-keys? [sort-cache-keys? #f]
+                . when-specs)
   (define (matches? i)
     (andmap
      (match-lambda [(list f (? procedure? fn)) (fn (hash-ref i f))]
@@ -96,7 +101,7 @@
   
   (define targetted (filter matches? table))
   (define sorted (if sort-field
-                     (sort targetted sort-fn #:key (// .. <> sort-field))
+                     (sort targetted sort-fn #:key (lambda (v) (sort-key (.. v sort-field))) #:cache-keys? sort-cache-keys?)
                      targetted))
   
   (when (and field fields)
@@ -115,15 +120,15 @@
     [(list v) v]
     [many (error 'find "more than one found: ~a" many)]))
 
-(define (index-on table field)
+(define (table-index-by table field)
   (make-immutable-hash
    (for/list ([i table])
      (cons (hash-ref i field) i))))
 
-(define (sort-on table field less-than)
+(define (table-sort-by table field less-than)
   (sort table less-than #:key (// hash-ref <> field)))
 
-(define (group-on table field)
+(define (table-group-by table field)
   (for/fold ([result empty-hash]) ([i table])
     (hash-update result (hash-ref i field) (// cons i <>) empty)))
 
@@ -131,7 +136,7 @@
                  #:right-field [right-field left-field]
                  #:missing [missing 'error]
                  #:duplicate [duplicate 'error])
-  (define indexed (index-on right-table right-field))
+  (define indexed (table-index-by right-table right-field))
   (filter (lambda (i) i)
           (for/list ([i left-table])
             (let ([left-val (hash-ref i left-field)])
@@ -153,7 +158,7 @@
 (define (join/nested left-table right-table left-field
                      #:right-field [right-field left-field]
                      #:missing [missing 'error])
-  (define indexed (index-on right-table right-field))
+  (define indexed (table-index-by right-table right-field))
   (filter (lambda (i) i)
           (for/list ([i left-table])
             (let ([left-val (hash-ref i left-field)])
@@ -165,7 +170,7 @@
                     ['error (error 'join-on "join target doesn't exists in the right table: ~a" left-val)]))))))
 
 (define (join/many left-table right-table left-field #:right-field [right-field left-field])
-  (define grouped (group-on right-table right-field))
+  (define grouped (table-group-by right-table right-field))
   (for/list ([i left-table])
     (let ([lst (hash-ref grouped (hash-ref i left-field))])
       (hash-set i left-field lst))))

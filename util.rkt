@@ -1,7 +1,8 @@
 #lang racket
 
-(provide format-percent id average pad match? match?-lambda pipe lambda-pipe group-pairwise)
+(provide id match? match?-lambda pipe lambda-pipe)
 
+(provide/contract [format-percent (number? . -> . string?)])
 (define (format-percent n) (format "~a%" (round (* 100 n))))
 
 ;; indent: Indent the string STR by n spaces. STR may have multiple lines
@@ -24,8 +25,10 @@
 
 (define (id i) i)
 
+(provide/contract [average (() () #:rest (listof number?) . ->* . number?)])
 (define (average . args) (/ (apply + args) (length args)))
 
+(provide/contract [pad (natural-number/c char? any/c . -> . string?)])
 (define (pad length c v)
   (define str (format "~a" v))
   (format "~a~a" (make-string (max 0 (- length (string-length str))) c) str))
@@ -39,7 +42,7 @@
   (syntax-case stx ()
     [(_ pattern) (syntax/loc stx
                    (match-lambda [pattern #t] [_ #f]))]))
-  
+
 
 (require "cut.rkt")
 (define-syntax (pipe stx)
@@ -55,7 +58,15 @@
      (syntax/loc stx
        (lambda (init) (pipe init (callee args ...) ...)))]))
 
-(define (group-pairwise lst)
+(provide list-even-length?/c)
+(define list-even-length?/c (flat-named-contract
+                             'list-even-length/c
+                             (and/c list?
+                                    (lambda (lst) (even? (length lst))))))
+
+(provide/contract [group-pairwise (list-even-length?/c . -> . (listof (list/c any/c any/c)))])
+(define/contract (group-pairwise lst)
+  (list-even-length?/c . -> . (listof (list/c any/c any/c)))
   (match lst
     [(list) empty]
     [(list fst snd rst ...)
