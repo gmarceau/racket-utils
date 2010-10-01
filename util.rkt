@@ -1,6 +1,8 @@
 #lang racket
 
-(provide id match? match?-lambda pipe lambda-pipe)
+(require unstable/contract "contract.rkt")
+
+(provide match? match?-lambda pipe lambda-pipe list-even-length/c list-pairwise/c)
 
 (provide/contract [format-percent (number? . -> . string?)])
 (define (format-percent n) (format "~a%" (round (* 100 n))))
@@ -22,8 +24,6 @@
           bullet-str
           (substring (indent (+ bullet-len 1 n) str)
                      (add1 bullet-len))))
-
-(define (id i) i)
 
 (provide/contract [average (() () #:rest (listof number?) . ->* . number?)])
 (define (average . args) (/ (apply + args) (length args)))
@@ -58,40 +58,7 @@
      (syntax/loc stx
        (lambda (init) (pipe init (callee args ...) ...)))]))
 
-(provide list-even-length?/c)
-(define list-even-length?/c (flat-named-contract
-                             'list-even-length/c
-                             (and/c list?
-                                    (lambda (lst) (even? (length lst))))))
 
-(provide/contract [group-pairwise (list-even-length?/c . -> . (listof (list/c any/c any/c)))])
-(define/contract (group-pairwise lst)
-  (list-even-length?/c . -> . (listof (list/c any/c any/c)))
-  (match lst
-    [(list) empty]
-    [(list fst snd rst ...)
-     (cons (list fst snd) (group-pairwise rst))]
-    [else (error 'group-pairwise "there is a key that does not have a value")]))
 
-#;
-(require (for-syntax
-          racket/match
-          racket/list))
-#;
-(define-match-expander (h stx)
-  (let ()
-    (define (group-pair-wise lst)
-      (match lst
-        [(list) empty]
-        [(list fst snd rst ...)
-         (cons (list fst snd) (group-pair-wise rst))]
-        [else (raise-syntax-error #f "there is a key that does not have a match value" stx)]))
-    (printf "hash~n")
-    (syntax-case stx ()
-      [(_ arg ...)
-       (begin
-         (printf "~a~n" (group-pair-wise (syntax->list #'(arg ...))))
-         (with-syntax ([(grouped ...) (group-pair-wise (syntax->list #'(arg ...)))])
-           (syntax/loc stx (hash-table grouped ...))))
-       ])))
+
 

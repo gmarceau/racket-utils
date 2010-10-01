@@ -1,9 +1,10 @@
 #lang racket
 (require "hash.rkt"
          "util.rkt"
-         "cut.rkt")
+         "cut.rkt"
+         unstable/function)
 
-
+(provide (struct-out counted))
 (define-struct counted (cats c) #:prefab)
 
 ; (listof a) -> (listof (struct count))
@@ -83,7 +84,7 @@
   (define h (for/fold ([result empty-hash])
               ([v keyed])
               (hash-update result (bucket-of v) add1 0)))
-  (for/list ([i `(min ,@(build-list number-of-buckets id) max)])
+  (for/list ([i `(min ,@(build-list number-of-buckets identity) max)])
     (make-counted (category-of i) (hash-ref h i 0))))
 
 
@@ -104,14 +105,14 @@
 (provide/contract [take-top-percentile ((list? number?)
                                         (#:key (any/c . -> . any/c) #:cache-keys? boolean?) . ->* . list?)])
 (define (take-top-percentile lst percentile
-                             #:key [key-fn id]
+                             #:key [key-fn identity]
                              #:cache-keys? [cache-keys? false])
   (take-percentile lst (- 1 percentile) #t key-fn cache-keys?))
 
 (provide/contract [take-bottom-percentile ((list? number?)
                                            (#:key (any/c . -> . any/c) #:cache-keys? boolean?) . ->* . list?)])
 (define (take-bottom-percentile lst percentile
-                                #:key [key-fn id]
+                                #:key [key-fn identity]
                                 #:cache-keys? [cache-keys? false])
   (take-percentile lst percentile #f key-fn cache-keys?))
 

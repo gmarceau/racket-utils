@@ -1,7 +1,7 @@
 #lang racket
 (require "cut.rkt"
-         "hash.rkt"
-         "util.rkt")
+         "util.rkt"
+         unstable/function)
 
 (provide/contract [mapmap ((any/c . -> . any) (listof list?) . -> . (listof list?))])
 (define (mapmap fn lstlst)
@@ -38,15 +38,24 @@
 (provide struct->list)
 (define (struct->list str) (vector->list (struct->vector str)))
 
+(provide listof-kv/c)
+(define listof-kv/c (flat-named-contract 'listof-kv/c (listof (list/c any/c any/c))))
+
 ; (listof a) (a -> b) -> (list/c b (listof a))
 (provide/contract [group-by ((list? (any/c . -> . any/c)) (#:map (any/c . -> . any/c)) . ->* . listof-kv/c)])
-(define (group-by lst key-fn #:map [map-fn id])
-  (hash->list (group-by:h lst key-fn #:map map-fn)))
+(define (group-by lst key-fn #:map [map-fn identity])
+  (hash-map (group-by:h lst key-fn #:map map-fn) list))
 
 ; (listof a) (a -> b) -> (hash b (listof a))
 (provide/contract [group-by:h ((list? (any/c . -> . any/c)) (#:map (any/c . -> . any/c)) . ->* . hash?)])
-(define (group-by:h lst key-fn #:map [map-fn id])
+(define (group-by:h lst key-fn #:map [map-fn identity])
   (for/fold ([result (make-immutable-hash empty)])
     ([item lst])
     (hash-update result (key-fn item) (// cons (map-fn item) <>) empty)))
 
+(provide/contract [group-pairwise (list-even-length/c . -> . (listof (list/c any/c any/c)))])
+(define (group-pairwise lst)
+  (match lst
+    [(list) empty]
+    [(list fst snd rst ...)
+     (cons (list fst snd) (group-pairwise rst))]))
