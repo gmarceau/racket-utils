@@ -8,7 +8,7 @@
 (define-struct counted (cats c) #:prefab)
 
 ; (listof a) -> (listof (struct count))
-(provide/contract [count-instances (list? . -> . (listof (list/c any/c counted?)))])
+(provide/contract [count-instances (list? . -> . (listof counted?))])
 (define (count-instances lst)
   (sort
    (hash-map

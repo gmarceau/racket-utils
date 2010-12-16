@@ -53,6 +53,14 @@
     ([item lst])
     (hash-update result (key-fn item) (// cons (map-fn item) <>) empty)))
 
+(provide/contract [index-by ((list? (any/c . -> . any/c)) (#:map (any/c . -> . any/c)) . ->* . hash?)])
+(define (index-by lst key-fn #:map [map-fn identity])
+  (for/fold ([result (make-immutable-hash empty)])
+    ([item lst])
+    (define k (key-fn item))
+    (when (hash-has-key? result k) (error 'index-by "key ~a has duplicates" k))
+    (hash-set result k (map-fn item))))
+
 (provide/contract [group-pairwise (list-even-length/c . -> . (listof (list/c any/c any/c)))])
 (define (group-pairwise lst)
   (match lst

@@ -16,13 +16,37 @@
  unstable/list
  (only-in srfi/1 lset-difference zip unzip2))
 
-(provide unique)
+(provide !! -- ??
+         item? item/c table? table/c
+         csv->table table->csv lstlst->table unique)
 
 ; a table is a (listof (hash symbol any))
 
 (require "debug.rkt")
 
+(current-test-on? #f)
+
 (define (item/c . keys) (rename-contract (and/c hash? (lambda (v) (andmap (// hash-has-key? v <>) keys))) (cons 'item/c keys)))
+
+(define (extend-*/c being-extended-name being-extended-fn ic . keys)
+  (define name (contract-name ic))
+  (unless (match name [(list name k ...) (eq? name being-extended-name)] [_ false])
+    (error 'extend-item/c "not an ~a contract:" ic))
+  (rename-contract (and/c ic (apply being-extended-fn keys))
+                   (cons being-extended-name (append (rest name) keys))))
+
+(provide/contract [extend-item/c ((contract?) () #:rest list? . ->* . contract?)])
+(define (extend-item/c ic . keys)
+  (apply extend-*/c 'item/c item/c ic keys))
+
+(define (extend-item-kv/c ic . keys)
+  (apply extend-*/c 'item-kv/c item-kv/c ic keys))
+
+(define (extend-table/c tc . keys)
+  (apply extend-*/c 'table/c table/c tc keys))
+
+(define (extend-table-kv/c tc . keys)
+  (apply extend-*/c 'table-kv/c table-kv/c tc keys))
 
 (provide/contract [item-kv/c (() () #:rest (list-pairwise/c any/c contract?) . ->* . contract?)])
 (define (item-kv/c . key-values)
@@ -48,8 +72,6 @@
   
   (make-contract #:name name
                  #:first-order first-order #:projection projection))
-
-(current-test-on? #t)
 
 (test-data
  (define test-c (item-kv/c 1 number? 2 (symbols 'a 'b) 3 (any/c . -> . any/c)))
@@ -93,10 +115,30 @@
                           test-c3 (list (hash 1 add1)) #f)
       (check-contract-exn "number? number? number?" test-c3 (list (hash 1 +)) (lambda (v) ((hash-ref (first v) 1) 1 'x))))
 
+(test 'extend-*/c (check-equal? (contract-name (extend-item/c (item/c 'x) 'y 'z))
+                                '(item/c x y z))
+      (check-contract-exn "(item/c x y z)" (extend-item/c (item/c 'x) 'y 'z) (hash 'x 1) #f)
+      (check-contract-exn "(item/c x y z)" (extend-item/c (item/c 'x) 'y 'z) (hash 'y 1 'z 2) #f)
+      (check-contract-pass (extend-item/c (item/c 'x) 'y 'z) (hash 'x 1 'y 1 'z 2) #f)
+      
+      (check-equal? (contract-name (extend-item-kv/c (item-kv/c 'x number?) 'y string? 'z boolean?))
+                    `(item-kv/c x ,number? y ,string? z ,boolean?))
+      (check-equal? (contract-name (extend-table/c (table/c 'x) 'y 'z))
+                    '(table/c x y z))
+      (check-equal? (contract-name (extend-table-kv/c (table-kv/c 'x number?) 'y string? 'z boolean?))
+                    `(table-kv/c x ,number? y ,string? z ,boolean?))
+      
+      (check-contract-exn "(table/c x y z)" (extend-table/c (table/c 'x) 'y 'z) (list (hash 'x 1)) #f)
+      (check-contract-pass (extend-table/c (table/c 'x) 'y 'z) (list (hash 'x 1 'y 1 'z 2)) #f))
+
 (define !! hash-set)
 (define -- hash-remove)
 (define ?? hash-has-key?)
 (define none-given (gensym))
+
+(define default-proc/c (or/c (negate procedure?) (-> any)))
+
+(provide/contract [.. (([hash hash?]) (#:default [default default-proc/c]) #:rest rst any/c . ->d . [result any/c])])
 (define (.. hash #:default [default none-given] . fields)
   (for/fold ([result hash]) ([f fields])
     (cond [(eq? default none-given) (hash-ref result f)]
@@ -124,13 +166,16 @@
                    (map (// .. row <>) order/missing)))
     (write-table (cons order/missing data) port)))
 
+(provide/contract [csv-field-order (path-string? . -> . (listof symbol?))])
+(define (csv-field-order filename) (map string->symbol (first (csv->list (with-input-from-file filename read-line)))))
+
 (define (lstlst->table field-names lstlst)
   (for/list ([lst lstlst])
     (make-immutable-hash
      (map cons field-names lst))))
 
 ;; WHEN-SPEC is (listof (list/c field-name (or/c value (any . -> . boolean?)))
-(define when-spec-contract (listof (list/c any/c (or/c (negate procedure?) predicate-like/c))))
+(define when-spec-contract (list-pairwise/c any/c (or/c (negate procedure?) predicate-like/c)))
 (define select-contract (([table table?])
                          (#:field [field any/c] #:fields [fields list?] #:sort [sort-field any/c]
                                   #:sort-fn [sort-fn comparison-like/c] #:sort-key [sort-key (any/c . -> . any)]
@@ -138,8 +183,8 @@
                          #:rest rst when-spec-contract
                          . ->d . [result list?]))
 (provide/contract [select select-contract])
-(define (select table #:field [field #f] #:fields [fields #f]
-                #:sort [sort-field #f]
+(define (select table #:field [field none-given] #:fields [fields #f]
+                #:sort [sort-field none-given]
                 #:sort-fn [sort-fn <]
                 #:sort-key [sort-key (lambda (x) x)]
                 #:sort-cache-keys? [sort-cache-keys? #f]
@@ -151,23 +196,25 @@
                    [(list f v) (equal? (hash-ref i f) v)])
      (group-pairwise when-specs)))
   
-  (define needed-fields (append (or fields (list field))
-                                (if sort-field (list sort-field) empty)))
+  (when (and (not (eq? field none-given)) fields)
+    (error 'select "only one of #:field or #:fields is allowed"))
+  
+  (define needed-fields (append (cond [(not (eq? field none-given)) (list field)]
+                                      [fields fields]
+                                      [else empty])
+                                (if (not (eq? sort-field none-given)) (list sort-field) empty)))
   (for* ([i table]
          [f needed-fields])
     (unless (hash-has-key? i f)
       (error 'select (format "field `~a' is missing in: ~a" f i))))
   
   (define targetted (filter matches? table))
-  (define sorted (if sort-field
+  (define sorted (if (not (eq? sort-field none-given))
                      (sort targetted sort-fn #:key (lambda (v) (sort-key (.. v sort-field))) #:cache-keys? sort-cache-keys?)
                      targetted))
   
-  (when (and field fields)
-    (error 'select "only one of #:field or #:fields is allowed"))
-  
   (for/list ([i sorted])
-    (cond [field (hash-ref i field)]
+    (cond [(not (eq? field none-given)) (hash-ref i field)]
           [fields (make-immutable-hash
                    (for/list ([f fields]) (cons f (hash-ref i f))))]
           [else i])))
@@ -185,10 +232,13 @@
       (check-exn-msg exn:fail? "field `cc' is missing" (lambda () (select-wc data #:field 'x #:sort 'cc))))
 
 ;; find: Like select, but checks that only one result is found, then return that item
-(provide/contract [find (([table table?]) (#:field [field any/c] #:fields [fields list?]) #:rest rst when-spec-contract . ->d . [result item?])])
-(define (find table #:field [field #f] #:fields [fields #f] . when-specs)
+(provide/contract [find (([table table?]) (#:field [field any/c] #:fields [fields list?] #:default [default default-proc/c]) #:rest rst when-spec-contract . ->d . [result any/c])])
+(define (find table #:field [field none-given] #:fields [fields #f] #:default [default none-given] . when-specs)
   (match (apply select table #:field field #:fields fields when-specs)
-    [(list) (error 'find "nothing found: ~a" when-specs)]
+    [(list)
+     (cond [(eq? default none-given) (error 'find "nothing found: ~a" when-specs)]
+           [(procedure? default) (default)]
+           [else default])]
     [(list v) v]
     [many (error 'find "more than one found: ~a" many)]))
 
@@ -244,8 +294,7 @@
                            (hash-set result key val)]
                           [(eq? duplicate 'left) result]
                           [(eq? duplicate 'error)
-                           (error 'join-on "joined tables duplicates field ~a" key)]
-                          [else (error 'join-on "duplicate is not one of 'left, 'right, or 'error")]))
+                           (error 'join-on "joined tables duplicates field ~a" key)]))
                   
                   (match missing
                     ['partial i]
@@ -318,11 +367,11 @@
         (hash-set i field (v/fn i))
         (hash-set i field v/fn))))
 
-(provide/contract [table-remove-column (([table (apply table/c fields)]) () #:rest fields list? . ->d . [result table?])])
+(provide/contract [table-remove-column (([table (apply table/c fields)]) () #:rest fields any/c . ->d . [result table?])])
 (define (table-remove-column table . fields)
   (for/list ([i table]) (for/fold ([result i]) ([f fields]) (hash-remove result f))))
 
-(provide/contract [table-fill-missing (table? any/c (or (negate procedure?) (item? . -> . any)) . -> . table?)])
+(provide/contract [table-fill-missing (table? any/c (or/c (negate procedure?) (item? . -> . any)) . -> . table?)])
 (define (table-fill-missing table field v/fn)
   (for/list ([i table])
     (cond [(hash-has-key? i field) i]
@@ -344,3 +393,8 @@
   (map (lambda (i) (.. i field)) table))
 
 (define unique (procedure-rename remove-duplicates 'unique))
+
+(provide/contract [item-select (([item (apply item/c fields)]) () #:rest fields any/c . ->d . [result (apply item/c fields)])])
+(define (item-select item . fields)
+  (for/fold ([result empty-hash]) ([f fields])
+    (hash-set result f (hash-ref item f))))

@@ -1,6 +1,5 @@
 #lang racket
-(require "util.rkt"
-         "list.rkt"
+(require "list.rkt"
          unstable/function)
 
 (provide empty-hash)
@@ -62,7 +61,7 @@
 (provide/contract [hash-keys (hash? . -> . list?)])
 (define (hash-keys hash) (hash-map hash (lambda (k v) k)))
 
-(provide/contract [hash-values (hash . -> . list?)])
+(provide/contract [hash-values (hash? . -> . list?)])
 (define (hash-values hash) (hash-map hash (lambda (k v) v)))
 
 (provide/contract [hash-size (hash? . -> . natural-number/c)])
