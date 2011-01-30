@@ -1,5 +1,6 @@
 #lang racket
 (require "list.rkt"
+         "util.rkt"
          unstable/function)
 
 (provide empty-hash)
@@ -12,9 +13,9 @@
   (for/fold ([result empty-hash]) ([p (group-pairwise k/vs)])
     (match p [(list k v) (hash-set result k v)])))
 |#
-(provide/contract [hash-set-all (hash? listof-kv/c . -> . hash?)])
-(define (hash-set-all h pairs)
-  (for/fold ([h h]) ([p pairs])
+(provide/contract [hash-set-all ((hash?) () #:rest list-even-length/c . ->* . hash?)])
+(define (hash-set-all h . pairs)
+  (for/fold ([h h]) ([p (group-pairwise pairs)])
     (match p [(list k v) (hash-set h k v)])))
 
 (provide/contract [hash-map:h (hash? (any/c any/c . -> . any/c) . -> . hash?)])

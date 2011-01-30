@@ -33,6 +33,7 @@
   (map (match-lambda [(struct counted (cats c)) (make-counted cats (/ c total))])
        counts))
 
+(provide time-serie-histogram)
 (define (time-serie-histogram histograms #:sort? [sort? #t])
   (define (invert-lists rows)
     (apply map (lambda m m) rows))
@@ -62,6 +63,7 @@
   sorted)
 
 (define-struct bucket (low high c) #:prefab)
+(provide value-histogram)
 (define (value-histogram lst number-of-buckets
                          #:min-v [given-min-v #f]
                          #:max-v [given-max-v #f]

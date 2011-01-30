@@ -131,9 +131,12 @@
       (check-contract-exn "(table/c x y z)" (extend-table/c (table/c 'x) 'y 'z) (list (hash 'x 1)) #f)
       (check-contract-pass (extend-table/c (table/c 'x) 'y 'z) (list (hash 'x 1 'y 1 'z 2)) #f))
 
-(define !! hash-set)
-(define -- hash-remove)
-(define ?? hash-has-key?)
+(define !! hash-set-all)
+
+(define (-- hash . fields) (for/fold ([result hash]) ([f fields]) (hash-remove result f)))
+
+(define (?? hash . fields) (for/and ([f fields]) (hash-has-key? hash f)))
+
 (define none-given (gensym))
 
 (define default-proc/c (or/c (negate procedure?) (-> any)))
@@ -261,12 +264,14 @@
 (define table-group-by-contract (([table (table/c field)] [field any/c]) () . ->d . [result (hash/c any/c (table/c field))]))
 (provide/contract [table-group-by table-group-by-contract])
 (define (table-group-by table field)
-  (for/fold ([result empty-hash]) ([i table])
-    (hash-update result (hash-ref i field) (// cons i <>) empty)))
+  (define result (for/fold ([result empty-hash]) ([i table])
+                   (hash-update result (hash-ref i field) (// cons i <>) empty)))
+  (hash-map-values:h result reverse))
 
 (test 'table-group-by
-      (check-equal? (table-group-by data 'x) (hash 1 (list (hash 'x 1 'y 2 'z 3 'boo "foo"))
-                                                   4 (list (hash 'x 4 'y 5 'z 6))))
+      (check-equal? (table-group-by (cons (hash 'x 4) data) 'x)
+                    (hash 1 (list (hash 'x 1 'y 2 'z 3 'boo "foo"))
+                          4 (list (hash 'x 4) (hash 'x 4 'y 5 'z 6))))
       (check-contract-exn "(table/c x)" table-group-by-contract table-group-by (lambda (fn) (fn (list (hash)) 'x))))
 
 (define (or-supply v default) (if (eq? v the-unsupplied-arg) default v))
@@ -378,7 +383,7 @@
           [(procedure? v/fn) (hash-set i field (v/fn i))]
           [else (hash-set i field v/fn)])))
 
-(provide/contract [table-update (([table (table/c field)] [field any/c] [v/fn (or (negate procedure?) (item? . -> . any))]) () . ->d . [result table?])])
+(provide/contract [table-update (([table (table/c field)] [field any/c] [v/fn (or/c (negate procedure?) (item? . -> . any))]) () . ->d . [result table?])])
 (define (table-update table field v/fn)
   (map (// hash-update <> field v/fn) table))
 
@@ -398,3 +403,9 @@
 (define (item-select item . fields)
   (for/fold ([result empty-hash]) ([f fields])
     (hash-set result f (hash-ref item f))))
+
+(provide/contract [item-join (item? item? . -> . item?)])
+(define (item-join item1 item2)
+  (for/fold ([result item1]) ([(k v) item2])
+    (when (hash-has-key? item1 k) (error 'item-join "duplicate key: ~a" k))
+    (hash-set result k v)))
