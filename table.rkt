@@ -73,11 +73,12 @@
   (make-contract #:name name
                  #:first-order first-order #:projection projection))
 
+#;
 (test-data
  (define test-c (item-kv/c 1 number? 2 (symbols 'a 'b) 3 (any/c . -> . any/c)))
  (define test-c2 (item-kv/c 1 (number? number? . -> . number?))))
-
-(test 'item/c*
+#;
+(test 'item/c* 0
       (check-true (contract-first-order-passes? (item/c 1 2 3) (hash 1 1 2 2 3 3 4 4)))
       (check-false (contract-first-order-passes? (item/c 1 2 3) (hash 2 2 3 3 4 4)))
       (check-contract-exn "(item/c 1)" (item/c 1) (hash 2 2) #f)
@@ -104,9 +105,9 @@
 
 (define (table? v) (and (list? v) (andmap hash? v)))
 (define item? hash?)
-
+#;
 (test-data (define test-c3 (table-kv/c 1 (number? number? . -> . number?))))
-
+#;
 (test 'table/c
       (check-false (contract-first-order-passes? (table/c 'time) (list (hash 'x 1))))
       (check-true (contract-first-order-passes? (table/c 'time) (list (hash 'time 1))))
@@ -114,7 +115,7 @@
       (check-contract-exn (regexp (regexp-quote (format "~a" '(item-kv/c 1 (-> number? number? number?)))))
                           test-c3 (list (hash 1 add1)) #f)
       (check-contract-exn "number? number? number?" test-c3 (list (hash 1 +)) (lambda (v) ((hash-ref (first v) 1) 1 'x))))
-
+#;
 (test 'extend-*/c (check-equal? (contract-name (extend-item/c (item/c 'x) 'y 'z))
                                 '(item/c x y z))
       (check-contract-exn "(item/c x y z)" (extend-item/c (item/c 'x) 'y 'z) (hash 'x 1) #f)
@@ -193,25 +194,35 @@
                 #:sort-cache-keys? [sort-cache-keys? #f]
                 . when-specs)
   
+  (define when-specs-grouped (group-pairwise when-specs))
+  
+  (define (check-has-field i f)
+    (unless (hash-has-key? i f)
+      (error 'select (format "field `~a' is missing in: ~a" f i))))
+  
+  (define (check-has-fields table fields)
+    (for* ([i table]
+           [f fields])
+      (check-has-field i f)))
+  
   (define (matches? i)
     (andmap
-     (match-lambda [(list f (? procedure? fn)) (fn (hash-ref i f))]
-                   [(list f v) (equal? (hash-ref i f) v)])
-     (group-pairwise when-specs)))
+     (match-lambda [(list f (? procedure? fn)) (check-has-field i f) (fn (hash-ref i f))]
+                   [(list f v) (check-has-field i f) (equal? (hash-ref i f) v)])
+     when-specs-grouped))
   
   (when (and (not (eq? field none-given)) fields)
     (error 'select "only one of #:field or #:fields is allowed"))
   
-  (define needed-fields (append (cond [(not (eq? field none-given)) (list field)]
-                                      [fields fields]
-                                      [else empty])
-                                (if (not (eq? sort-field none-given)) (list sort-field) empty)))
-  (for* ([i table]
-         [f needed-fields])
-    (unless (hash-has-key? i f)
-      (error 'select (format "field `~a' is missing in: ~a" f i))))
-  
   (define targetted (filter matches? table))
+  
+  (define post-needed-fields (append (cond [(not (eq? field none-given)) (list field)]
+                                           [fields fields]
+                                           [else empty])
+                                     (if (not (eq? sort-field none-given)) (list sort-field) empty)))
+  
+  (check-has-fields targetted post-needed-fields)
+  
   (define sorted (if (not (eq? sort-field none-given))
                      (sort targetted sort-fn #:key (lambda (v) (sort-key (.. v sort-field))) #:cache-keys? sort-cache-keys?)
                      targetted))
@@ -224,7 +235,7 @@
 
 (test-data
  (define data (list (hash 'x 1 'y 2 'z 3 'boo "foo") (hash 'x 4 'y 5 'z 6))))
-
+#;
 (test 'select
       (define select-wc (contract select-contract select 'pos 'neg))
       (check-equal? (select-wc data #:field 'x) '(1 4))
@@ -251,7 +262,7 @@
   (define dup (check-duplicate result #:key car))
   (when dup (error 'table-index-by "duplicate index key: ~a" dup))
   (make-immutable-hash result))
-
+#;
 (test 'table-index-by
       (check-equal? (table-index-by (list (hash 'a 1) (hash 'a 2)) 'a)
                     (hash 1 (hash 'a 1) 2 (hash 'a 2)))
@@ -267,7 +278,7 @@
   (define result (for/fold ([result empty-hash]) ([i table])
                    (hash-update result (hash-ref i field) (// cons i <>) empty)))
   (hash-map-values:h result reverse))
-
+#;
 (test 'table-group-by
       (check-equal? (table-group-by (cons (hash 'x 4) data) 'x)
                     (hash 1 (list (hash 'x 1 'y 2 'z 3 'boo "foo"))
@@ -306,10 +317,11 @@
                     ['remove #f]
                     ['error (error 'join-on "join target doesn't exists in the right table: ~a" left-val)]))))))
 
+#;
 (test-data
  (define test-join-left (list (hash 'a 1 'b 2) (hash 'a 4 'b 5)))
  (define test-join-right (list (hash 'c 5 'd 15) (hash 'c 2 'd 10))))
-
+#;
 (test 'join-on
       (check-equal? (join-on test-join-left test-join-right 'b #:right-field 'c)
                     (list (hash 'a 1 'b 2 'c 2 'd 10)
@@ -342,7 +354,7 @@
                     ['partial i]
                     ['remove #f]
                     ['error (error 'join-on "join target doesn't exists in the right table: ~a" left-val)]))))))
-
+#;
 (test 'join-nested
       (check-equal? (join-nested test-join-left test-join-right 'b #:right-field 'c)
                     (list (hash 'a 1 'b (hash 'c 2 'd 10))
@@ -358,7 +370,7 @@
   (for/list ([i left-table])
     (let ([lst (hash-ref grouped (hash-ref i left-field))])
       (hash-set i left-field lst))))
-
+#;
 (test 'join-many
       (check-match (join-many test-join-left (cons (hash 'c 5 'd 20) test-join-right) 'b #:right-field 'c)
                    (list (hash 'a 1 'b (list (hash 'c 2 'd 10)))

@@ -32,9 +32,6 @@
 (provide/contract [transpose ((listof list?) . -> . (listof list?))])
 (define (transpose lstlst) (apply map list lstlst))
 
-(provide/contract [shuffle (list? . -> . list?)])
-(define (shuffle lst) (sort lst < #:key (lambda (v) (random)) #:cache-keys? #t))
-
 (provide struct->list)
 (define (struct->list str) (vector->list (struct->vector str)))
 

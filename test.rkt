@@ -83,8 +83,9 @@
 (define-syntax (test-data stx)
   (syntax-case stx (define)
     [(_ (define v exp) ...)
-     #'(begin
-         (define v (if (current-test-on?) exp #f)) ...)]))
+     #;#'(begin (define v (if (void) exp #f)) ...)
+     
+     #'(begin (define v (if (current-test-on?) exp #f)) ...)]))
 
 (define-syntax (test stx)
   (syntax-case stx ()

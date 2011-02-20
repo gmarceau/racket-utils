@@ -68,14 +68,15 @@
 (provide/contract [hash-size (hash? . -> . natural-number/c)])
 (define (hash-size h) (length (hash-keys h)))
 
-
+#;
 (require (for-syntax
           racket/match
           racket/list
           racket/pretty
           "list.rkt"))
-
+#;
 (provide (rename-out [hash* hash]))
+#;
 (define-match-expander hash*
   (lambda (stx)
     (syntax-case stx ()
