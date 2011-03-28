@@ -22,10 +22,15 @@
     ([item lst])
     (hash-update result item add1 0)))
 
-(provide/contract [counts->list ((listof counted?) . -> . (listof (list/c any/c natural-number/c)))])
+(provide/contract [counts->list ((listof counted?) . -> . (listof (list/c any/c number?)))])
 (define (counts->list counts)
   (map (match-lambda [(struct counted (cats c)) (list cats c)])
        counts))
+
+(provide/contract [counts->hash ((listof counted?) . -> . (hash/c any/c number?))])
+(define (counts->hash counts)
+  (for/fold ([result empty-hash]) ([c counts])
+    (hash-set result (counted-cats c) (counted-c c))))
 
 (provide/contract [normalize-counts ((listof counted?) . -> . (listof counted?))])
 (define (normalize-counts counts)
@@ -123,3 +128,8 @@
 
 (define (mode lst)
   (counted-cats (first (count-instances lst))))
+
+(provide/contract [count-contributions ((listof (list/c any/c number?)) . -> . (hash/c any/c number?))])
+(define (count-contributions lst-pairs)
+  (for/fold ([result (hash)]) ([pair lst-pairs])
+    (hash-update result (first pair) (lambda (v) (+ v (second pair))) 0)))

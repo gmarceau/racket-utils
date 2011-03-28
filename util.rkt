@@ -2,7 +2,8 @@
 
 (require unstable/contract "contract.rkt")
 
-(provide match? match?-lambda pipe lambda-pipe list-even-length/c list-pairwise/c)
+(provide match? match?-lambda pipe lambda-pipe list-even-length/c list-pairwise/c
+         ->string ->int)
 
 (provide/contract [format-percent (number? . -> . string?)])
 (define (format-percent n) (format "~a%" (round (* 100 n))))
@@ -59,6 +60,7 @@
        (lambda (init) (pipe init (callee args ...) ...)))]))
 
 
-
+(define (->string v) (format "~a" v))
+(define (->int v) (exact->inexact (round v)))
 
 
