@@ -2,7 +2,7 @@
 
 (require unstable/contract "contract.rkt")
 
-(provide match? match?-lambda pipe lambda-pipe list-even-length/c list-pairwise/c
+(provide match? match?-lambda list-even-length/c list-pairwise/c
          ->string ->int)
 
 (provide/contract [format-percent (number? . -> . string?)])
@@ -43,21 +43,6 @@
   (syntax-case stx ()
     [(_ pattern) (syntax/loc stx
                    (match-lambda [pattern #t] [_ #f]))]))
-
-
-(require "cut.rkt")
-(define-syntax (pipe stx)
-  (syntax-case stx ()
-    [(_ init (callee args ...) ...)
-     (syntax/loc stx
-       (for/fold ([result init]) ([fn (list (// callee args ...) ...)])
-         (fn result)))]))
-
-(define-syntax (lambda-pipe stx)
-  (syntax-case stx ()
-    [(_ (callee args ...) ...)
-     (syntax/loc stx
-       (lambda (init) (pipe init (callee args ...) ...)))]))
 
 
 (define (->string v) (format "~a" v))

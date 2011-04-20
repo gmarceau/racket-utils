@@ -68,10 +68,10 @@
   sorted)
 
 (define-struct bucket (low high c) #:prefab)
-(provide value-histogram)
-(define (value-histogram lst number-of-buckets
-                         #:min-v [given-min-v #f]
-                         #:max-v [given-max-v #f]
+(provide/contract [values-histogram ((listof number?) integer? . -> . any/c)])
+(define (values-histogram lst number-of-buckets
+                         #:min [given-min-v #f]
+                         #:max [given-max-v #f]
                          #:key [fn (lambda (i) i)])
   (define keyed (map fn lst))
   (define min-v (or given-min-v (apply min keyed)))
@@ -79,22 +79,21 @@
   (define delta-per-bucket (/ (- max-v min-v) number-of-buckets))
   (define (bucket-of v)
     (cond [(< v min-v) 'min]
-          [(< max-v v) 'max]
-          [else (truncate (/ (- v min-v) delta-per-bucket))]))
+          [(<= max-v v) 'max]
+          [else (exact->inexact (truncate (/ (- v min-v) delta-per-bucket)))]))
   (define (category-of bucket-id)
     (match bucket-id
-      ['min (format "less than ~a" (exact->inexact min-v))]
-      ['max (format "more than ~a" (exact->inexact max-v))]
-      [else (format "~a to ~a" 
+      ['min (format "[..., ~a[" (exact->inexact min-v))]
+      ['max (format "[~a, ...]" (exact->inexact max-v))]
+      [else (format "[~a, ~a["
                     (exact->inexact (+ min-v (* bucket-id delta-per-bucket)))
                     (exact->inexact (+ min-v (* (add1 bucket-id) delta-per-bucket))))]))
   (define h (for/fold ([result empty-hash])
               ([v keyed])
               (hash-update result (bucket-of v) add1 0)))
-  (for/list ([i `(min ,@(build-list number-of-buckets identity) max)])
+  
+  (for/list ([i `(min ,@(build-list number-of-buckets exact->inexact) max)])
     (make-counted (category-of i) (hash-ref h i 0))))
-
-
 
 (define (take-percentile lst percentile top? key-fn cache-keys?)
   (define sorted (sort lst (if top? > <) #:key key-fn #:cache-keys? cache-keys?))

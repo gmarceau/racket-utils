@@ -272,11 +272,13 @@
 (define (table-sort-by table field less-than #:key [key-fn identity] #:cache-keys? [cache-keys? #f])
   (sort table less-than #:key (lambda (i) (key-fn (hash-ref i field))) #:cache-keys? cache-keys?))
 
-(define table-group-by-contract (([table (table/c field)] [field any/c]) () . ->d . [result (hash/c any/c (table/c field))]))
+(define table-group-by-contract (([table (apply table/c rst)]) () #:rest rst any/c . ->d . [result (hash/c any/c (apply table/c rst))]))
 (provide/contract [table-group-by table-group-by-contract])
-(define (table-group-by table field)
+(define (table-group-by table . fields)
   (define result (for/fold ([result empty-hash]) ([i table])
-                   (hash-update result (hash-ref i field) (// cons i <>) empty)))
+                   (define k (match fields [(list f) (hash-ref i f)]
+                               [_ (map (// hash-ref i <>) fields)]))
+                   (hash-update result k (// cons i <>) empty)))
   (hash-map-values:h result reverse))
 #;
 (test 'table-group-by
@@ -308,9 +310,11 @@
                     (cond [(or (not (hash-has-key? result key))
                                (eq? duplicate 'right))
                            (hash-set result key val)]
-                          [(eq? duplicate 'left) result]
+                          [(or (and (eq? left-field right-field) (eq? key right-field))
+                               (eq? duplicate 'left))
+                           result]
                           [(eq? duplicate 'error)
-                           (error 'join-on "joined tables duplicates field ~a" key)]))
+                           (error 'join-on "the joined tables duplicate field: ~a" key)]))
                   
                   (match missing
                     ['partial i]
@@ -338,18 +342,20 @@
                               [right-table (table/c (or-supply right-field left-field))]
                               [left-field any/c])
                              (#:right-field [right-field any/c]
+                                            #:destination [destination-field any/c]
                                             #:missing [missing (symbols 'partial 'remove 'error)])
                              . ->d . [result (table-kv/c left-field (item/c (or-supply right-field left-field)))]))
 (provide/contract [join-nested join-nested-contact])
 (define (join-nested left-table right-table left-field
                      #:right-field [right-field left-field]
+                     #:destination [destination-field left-field]
                      #:missing [missing 'error])
   (define indexed (table-index-by right-table right-field))
   (filter (lambda (i) i)
           (for/list ([i left-table])
             (let ([left-val (hash-ref i left-field)])
               (if (hash-has-key? indexed left-val)
-                  (hash-set i left-field (hash-ref indexed left-val))
+                  (hash-set i destination-field (hash-ref indexed left-val))
                   (match missing
                     ['partial i]
                     ['remove #f]
@@ -358,7 +364,10 @@
 (test 'join-nested
       (check-equal? (join-nested test-join-left test-join-right 'b #:right-field 'c)
                     (list (hash 'a 1 'b (hash 'c 2 'd 10))
-                          (hash 'a 4 'b (hash 'c 5 'd 15)))))
+                          (hash 'a 4 'b (hash 'c 5 'd 15))))
+      (check-equal? (join-nested test-join-left test-join-right 'b #:right-field 'c #:destination 'd)
+                    (list (hash 'a 1 'b 2 'd (hash 'c 2 'd 10))
+                          (hash 'a 4 'b 5 'd (hash 'c 5 'd 15)))))
 
 (provide/contract [join-many (([left-table (table/c left-field)]
                                [right-table (table/c (or-supply right-field left-field))]
@@ -405,8 +414,8 @@
     (hash-set (hash-remove i old-name)
               new-name (hash-ref i old-name))))
 
-(provide/contract [column->list (([table (table/c field)] [field any/c]) () . ->d . [result list?])])
-(define (column->list table field)
+(provide/contract [column (([table (table/c field)] [field any/c]) () . ->d . [result list?])])
+(define (column table field)
   (map (lambda (i) (.. i field)) table))
 
 (define unique (procedure-rename remove-duplicates 'unique))
@@ -421,3 +430,14 @@
   (for/fold ([result item1]) ([(k v) item2])
     (when (hash-has-key? item1 k) (error 'item-join "duplicate key: ~a" k))
     (hash-set result k v)))
+
+;; table-fields: return all fields seen in the table, including those which are sometime missing
+(provide/contract [table-fields (table? . -> . list?)])
+(define (table-fields tbl) (unique (append-map hash-keys tbl)))
+
+
+(provide/contract [hash->table (([h hash?] [k-name any/c] [v-name any/c]) () . ->d . [result (table/c k-name v-name)])])
+(define (hash->table h k-name v-name) (hash-map h (lambda (k v) (hash k-name k v-name v))))
+
+
+
