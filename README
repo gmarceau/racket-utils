@@ -1,0 +1,36 @@
+counting.rkt: 
+  count-instances -- takes a list, return the count of the elements
+  and other such functions
+
+cut.rkt:
+  provides cut as //, and also other such syntaxes
+
+date-time.rkt:
+  some date and time utils
+
+debug.rkt:
+  provides a printf-like debugging utility called %%
+    
+file.rkt:
+  some function to handle filename. some directory-list variants
+
+hash.rkt:
+  additional function on hash, and shorter names
+
+list.rkt:
+   mapmap, append^n, transpose, group-by, group-pairwise
+
+read.rkt:
+  read-all, read-syntax-all
+
+saving.rkt:
+  writing values with some guarantees that they will be readable (dies on non-printable values)
+
+table.rkt:
+  database-like operations on list of hashtables
+
+test.rkt:
+  check-exn-msg, check-contract-exn, check-contract-pass, and functions for turning tests on/off
+
+util.rkt:
+  indent, format-percent, average, pad, match?, match?-lambda, ->string, ->int
