@@ -10,8 +10,6 @@
  "util.rkt"
  "list.rkt"
  unstable/contract
- unstable/debug
- unstable/regexp
  unstable/function
  unstable/list
  (only-in srfi/1 lset-difference zip unzip2))
@@ -21,8 +19,6 @@
          csv->table table->csv lstlst->table unique)
 
 ; a table is a (listof (hash symbol any))
-
-(require "debug.rkt")
 
 (current-test-on? #f)
 
@@ -404,7 +400,7 @@
           [(procedure? v/fn) (hash-set i field (v/fn i))]
           [else (hash-set i field v/fn)])))
 
-(provide/contract [table-update (([table (table/c field)] [field any/c] [v/fn (or/c (negate procedure?) (item? . -> . any))]) () . ->d . [result table?])])
+(provide/contract [table-update (([table (table/c field)] [field any/c] [v/fn (or/c (negate procedure?) (any/c . -> . any))]) () . ->d . [result table?])])
 (define (table-update table field v/fn)
   (map (// hash-update <> field v/fn) table))
 
