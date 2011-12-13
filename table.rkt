@@ -416,11 +416,13 @@
 
 (define unique (procedure-rename remove-duplicates 'unique))
 
+; item-select: Takes an item and a list of fields, and returns an items with only those fields.
 (provide/contract [item-select (([item (apply item/c fields)]) () #:rest fields any/c . ->d . [result (apply item/c fields)])])
 (define (item-select item . fields)
   (for/fold ([result empty-hash]) ([f fields])
     (hash-set result f (hash-ref item f))))
 
+; item-join: takes two items returns an item that has the keys of both of them. Errors if any duplicate.
 (provide/contract [item-join (item? item? . -> . item?)])
 (define (item-join item1 item2)
   (for/fold ([result item1]) ([(k v) item2])
@@ -431,7 +433,7 @@
 (provide/contract [table-fields (table? . -> . list?)])
 (define (table-fields tbl) (unique (append-map hash-keys tbl)))
 
-
+; hash->table: return a table with two columns (k-name and v-name). The k-name's are the key, and their v-name are the matching value in the hash.
 (provide/contract [hash->table (([h hash?] [k-name any/c] [v-name any/c]) () . ->d . [result (table/c k-name v-name)])])
 (define (hash->table h k-name v-name) (hash-map h (lambda (k v) (hash k-name k v-name v))))
 
