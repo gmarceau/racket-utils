@@ -1,5 +1,103 @@
 #lang racket
 
+#|
+
+This file implements a data structures called 'table'.
+
+A table is a list of hash tables, where all the hash tables have the same keys. The keys are usually symbols, though
+that is not necessary. The table data structure is meant to be reminiscent of a database table, with data rows and
+labeled column.
+
+The table.rkt module defines the contract for tables, and for the items found in a table:
+
+;; (item/c KEYS ...) : an item which has the keys KEYS
+;; (table/c KEYS ...) : a table whose items all have the keys KEYS
+
+The table/c contract only requires that the given fields are present. It is allowed for items in the table to have
+additional fields.
+
+One of table.rkt’s most useful function is select, which mimics SQL’s select statements. Select takes a table as the
+first argument, followed by alternating arguments, one field name followed by one constraint on that field. The
+constraint can be either a value, or a predicate. Select returns the item which satisfy all the constraints. If the
+optional argument #:field is given, select returns a list containing that field’s value for all the matching items. If
+the optional arguments #:fields (note the ‘s’) is given, select returns the list of the matching items with only the
+keys listed in #:fields kept.
+
+For example, given a table of item with their names and their price, we can select those which costs 5$, select just
+their name, or select all items with an even price.
+
+    (define data '(#hash((name . "ball") (price . 5))
+                   #hash((name . "bicycle") (price . 70))
+                   #hash((name . "pool") (price . 100))
+                   #hash((name . "batman") (price . 5))))
+
+    (select data 'price 5)
+    ; returns '(#hash((name . "ball") (price . 5)) #hash((name . "batman") (price . 5)))
+
+    (select data 'price 5 #:field 'name)
+    ; returns '("ball" "batman")
+
+    (select data 'price even?)
+    ; returns '(#hash((name . "bicycle") (price . 70)) #hash((name . "pool") (price . 100)))
+
+By default, select returns the items in the same order as their appeared in the input table. If needed, Select has
+optional arguments to indicate the desired sort. #:sort indicated the field to sort on, #:sort-fn specifies the
+comparison function (mandatory if #:sort is given.) #:sort-key is a function that takes a field value and returns the
+value suitable for the comparison function. If #:sort-cache-keys? is #t then the #:sort-key function is called only once
+per field value.
+
+Example: to get the price of the items with even price, starting with those with the shorter names:
+
+    (select data 'price even? 
+            #:sort 'name #:sort-fn < #:sort-key string-length #:sort-cache-keys? #t
+            #:field 'price)
+    ; returns '(100 70)
+
+Other useful functions in table.rkt are:
+
+(find table #:field [field none-given] 
+      #:fields [fields #f] 
+      #:default [default none-given] . when-specs) 
+
+Like select, but checks that only one result is found, then returns that item
+
+(table-group-by table . fields) 
+
+Takes a table and a field, and returns a hash table where the keys are all the possible values of the field in the
+table, and the values are all the items that have that value for that field.
+
+(table-index-by table . fields)
+
+Like table-group-by, but assumes that each field value is unique. Thus the values of the hash table returned are items
+instead of lists.
+
+(join-on left-table right-table left-field
+         #:right-field [right-field left-field]
+         #:missing [missing 'error]
+         #:duplicate [duplicate 'error])
+
+Takes two tables (the left and the right table) and a field they have in common, and returns a table whose items have
+all the fields of the two input table combined, and the field values are taken from the left item and the right item
+which have the same value for the given field.
+
+(column table field)
+
+Returns all the values of the given field, in the same order as in the input table.
+
+Since code that uses table.rkt tend to do numerous hash table accesses, table.rkt provides short names for the hash
+table access functions. They are similar to the following definitions:
+
+(define .. hash-get) ;; two period
+(define !! hash-set)
+(define -- hash-remove) ;; two hyphens
+(define ?? hash-has-key?)
+
+The accessor functions provided by table.rkt have some additional functionality, namely, they accept a variable number
+of fields as arguments. When given two or more fields, dot-dot accesses nested hash tables, bang-bang sets all the given
+key-value pairs, minus-minus removes all the given field, uh-uh returns #t only if all the given field of present.
+
+|#
+
 (require
  (planet neil/csv)
  (planet dherman/csv-write/csv-write)
