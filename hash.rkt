@@ -1,7 +1,6 @@
 #lang racket
 (require "list.rkt"
-         "util.rkt"
-         unstable/function)
+         "util.rkt")
 
 (provide empty-hash)
 (define empty-hash (make-immutable-hash empty))

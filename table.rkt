@@ -1,7 +1,6 @@
 #lang racket
 
 #|
-
 This file implements a data structures called 'table'.
 
 A table is a list of hash tables, where all the hash tables have the same keys. The keys are usually symbols, though
@@ -48,20 +47,21 @@ per field value.
 
 Example: to get the price of the items with even price, starting with those with the shorter names:
 
-    (select data 'price even? 
+    (select data 'price even?
             #:sort 'name #:sort-fn < #:sort-key string-length #:sort-cache-keys? #t
             #:field 'price)
     ; returns '(100 70)
 
+
 Other useful functions in table.rkt are:
 
-(find table #:field [field none-given] 
-      #:fields [fields #f] 
-      #:default [default none-given] . when-specs) 
+(find table #:field [field none-given]
+      #:fields [fields #f]
+      #:default [default none-given] . when-specs)
 
 Like select, but checks that only one result is found, then returns that item
 
-(table-group-by table . fields) 
+(table-group-by table . fields)
 
 Takes a table and a field, and returns a hash table where the keys are all the possible values of the field in the
 table, and the values are all the items that have that value for that field.
@@ -96,6 +96,7 @@ The accessor functions provided by table.rkt have some additional functionality,
 of fields as arguments. When given two or more fields, dot-dot accesses nested hash tables, bang-bang sets all the given
 key-value pairs, minus-minus removes all the given field, uh-uh returns #t only if all the given field of present.
 
+
 |#
 
 (require
@@ -106,10 +107,7 @@ key-value pairs, minus-minus removes all the given field, uh-uh returns #t only 
  "hash.rkt"
  "counting.rkt"
  "util.rkt"
- "list.rkt"
- unstable/contract
- unstable/function
- unstable/list
+ (only-in "list.rkt" group-pairwise)
  (only-in srfi/1 lset-difference zip unzip2))
 
 (provide !! -- ??
@@ -167,11 +165,11 @@ key-value pairs, minus-minus removes all the given field, uh-uh returns #t only 
   (make-contract #:name name
                  #:first-order first-order #:projection projection))
 
-#;
+
 (test-data
  (define test-c (item-kv/c 1 number? 2 (symbols 'a 'b) 3 (any/c . -> . any/c)))
  (define test-c2 (item-kv/c 1 (number? number? . -> . number?))))
-#;
+
 (test 'item/c* 0
       (check-true (contract-first-order-passes? (item/c 1 2 3) (hash 1 1 2 2 3 3 4 4)))
       (check-false (contract-first-order-passes? (item/c 1 2 3) (hash 2 2 3 3 4 4)))
@@ -199,9 +197,9 @@ key-value pairs, minus-minus removes all the given field, uh-uh returns #t only 
 
 (define (table? v) (and (list? v) (andmap hash? v)))
 (define item? hash?)
-#;
+
 (test-data (define test-c3 (table-kv/c 1 (number? number? . -> . number?))))
-#;
+
 (test 'table/c
       (check-false (contract-first-order-passes? (table/c 'time) (list (hash 'x 1))))
       (check-true (contract-first-order-passes? (table/c 'time) (list (hash 'time 1))))
@@ -209,7 +207,7 @@ key-value pairs, minus-minus removes all the given field, uh-uh returns #t only 
       (check-contract-exn (regexp (regexp-quote (format "~a" '(item-kv/c 1 (-> number? number? number?)))))
                           test-c3 (list (hash 1 add1)) #f)
       (check-contract-exn "number? number? number?" test-c3 (list (hash 1 +)) (lambda (v) ((hash-ref (first v) 1) 1 'x))))
-#;
+
 (test 'extend-*/c (check-equal? (contract-name (extend-item/c (item/c 'x) 'y 'z))
                                 '(item/c x y z))
       (check-contract-exn "(item/c x y z)" (extend-item/c (item/c 'x) 'y 'z) (hash 'x 1) #f)
@@ -273,6 +271,8 @@ key-value pairs, minus-minus removes all the given field, uh-uh returns #t only 
      (map cons field-names lst))))
 
 ;; WHEN-SPEC is (listof (list/c field-name (or/c value (any . -> . boolean?)))
+(define predicate-like/c any/c)
+(define comparison-like/c any/c)
 (define when-spec-contract (list-pairwise/c any/c (or/c (negate procedure?) predicate-like/c)))
 (define select-contract (([table table?])
                          (#:field [field any/c] #:fields [fields list?] #:sort [sort-field any/c]
@@ -329,7 +329,7 @@ key-value pairs, minus-minus removes all the given field, uh-uh returns #t only 
 
 (test-data
  (define data (list (hash 'x 1 'y 2 'z 3 'boo "foo") (hash 'x 4 'y 5 'z 6))))
-#;
+
 (test 'select
       (define select-wc (contract select-contract select 'pos 'neg))
       (check-equal? (select-wc data #:field 'x) '(1 4))
@@ -353,10 +353,10 @@ key-value pairs, minus-minus removes all the given field, uh-uh returns #t only 
 (provide/contract [table-index-by (([table (table/c field)] [field any/c]) () . ->d . [result (hash/c any/c item?)])])
 (define (table-index-by table field)
   (define result (for/list ([i table]) (cons (hash-ref i field) i)))
-  (define dup (check-duplicate result #:key car))
+  (define dup (check-duplicates result #:key car))
   (when dup (error 'table-index-by "duplicate index key: ~a" dup))
   (make-immutable-hash result))
-#;
+
 (test 'table-index-by
       (check-equal? (table-index-by (list (hash 'a 1) (hash 'a 2)) 'a)
                     (hash 1 (hash 'a 1) 2 (hash 'a 2)))
@@ -374,7 +374,7 @@ key-value pairs, minus-minus removes all the given field, uh-uh returns #t only 
                                [_ (map (// hash-ref i <>) fields)]))
                    (hash-update result k (// cons i <>) empty)))
   (hash-map-values:h result reverse))
-#;
+
 (test 'table-group-by
       (check-equal? (table-group-by (cons (hash 'x 4) data) 'x)
                     (hash 1 (list (hash 'x 1 'y 2 'z 3 'boo "foo"))
@@ -415,11 +415,11 @@ key-value pairs, minus-minus removes all the given field, uh-uh returns #t only 
                     ['remove #f]
                     ['error (error 'join-on "join target doesn't exists in the right table: ~a" left-val)]))))))
 
-#;
+
 (test-data
  (define test-join-left (list (hash 'a 1 'b 2) (hash 'a 4 'b 5)))
  (define test-join-right (list (hash 'c 5 'd 15) (hash 'c 2 'd 10))))
-#;
+
 (test 'join-on
       (check-equal? (join-on test-join-left test-join-right 'b #:right-field 'c)
                     (list (hash 'a 1 'b 2 'c 2 'd 10)
@@ -454,7 +454,7 @@ key-value pairs, minus-minus removes all the given field, uh-uh returns #t only 
                     ['partial i]
                     ['remove #f]
                     ['error (error 'join-on "join target doesn't exists in the right table: ~a" left-val)]))))))
-#;
+
 (test 'join-nested
       (check-equal? (join-nested test-join-left test-join-right 'b #:right-field 'c)
                     (list (hash 'a 1 'b (hash 'c 2 'd 10))
@@ -473,11 +473,11 @@ key-value pairs, minus-minus removes all the given field, uh-uh returns #t only 
   (for/list ([i left-table])
     (let ([lst (hash-ref grouped (hash-ref i left-field))])
       (hash-set i left-field lst))))
-#;
+
 (test 'join-many
       (check-match (join-many test-join-left (cons (hash 'c 5 'd 20) test-join-right) 'b #:right-field 'c)
-                   (list (hash 'a 1 'b (list (hash 'c 2 'd 10)))
-                         (hash 'a 4 'b (list-no-order (hash 'c 5 'd 20) (hash 'c 5 'd 15))))))
+                   (list (hash-table ('a 1) ('b (list (hash-table ('c 2) ('d 10)))))
+                         (hash-table ('a 4) ('b (list-no-order (hash-table ('c 5) ('d 20)) (hash-table ('c 5) ('d 15))))))))
 
 (provide/contract [table-add-column (([table table?] [field any/c] [v/fn (or/c (negate procedure?) (item? . -> . any))])
                                      () . ->d . [result (table/c field)])])

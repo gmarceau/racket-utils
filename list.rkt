@@ -1,7 +1,6 @@
 #lang racket
 (require "cut.rkt"
-         "util.rkt"
-         unstable/function)
+         "util.rkt")
 
 (provide/contract [mapmap ((any/c . -> . any) (listof list?) . -> . (listof list?))])
 (define (mapmap fn lstlst)

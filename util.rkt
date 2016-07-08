@@ -1,6 +1,6 @@
 #lang racket
 
-(require unstable/contract "contract.rkt")
+(require "contract.rkt")
 
 (provide match? match?-lambda list-even-length/c list-pairwise/c
          ->string ->int)

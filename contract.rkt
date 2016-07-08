@@ -1,7 +1,6 @@
 #lang racket
 (provide (all-defined-out))
 
-(require unstable/contract unstable/function)
 
 (provide list-even-length/c)
 (define list-even-length/c (rename-contract (and/c list? (lambda (lst) (even? (length lst))))

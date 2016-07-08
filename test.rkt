@@ -10,13 +10,12 @@
 
 (require
  (for-syntax "util.rkt")
- unstable/function
  (planet schematics/schemeunit:3:4)
  (planet schematics/schemeunit:3:4/text-ui)
  (planet schematics/schemeunit:3:4/format)
  (planet schematics/schemeunit:3:4/check))
 
-(require (for-syntax unstable/syntax))
+;(require (for-syntax unstable/syntax))
 
 (define-check (check-match result input-pattern thunk)
   (with-check-info

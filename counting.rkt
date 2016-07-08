@@ -1,8 +1,7 @@
 #lang racket
 (require "hash.rkt"
          "util.rkt"
-         "cut.rkt"
-         unstable/function)
+         "cut.rkt")
 
 (provide (struct-out counted))
 (define-struct counted (cats c) #:prefab)
